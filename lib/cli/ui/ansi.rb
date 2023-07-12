@@ -9,6 +9,16 @@ module CLI
 
       ESC = "\x1b"
 
+      # This matches the OSC-8 sequence for hyperlinks
+      # See https://github.com/Alhadis/OSC8-Adoption/
+      HYPERLINK_REGEXP = %r{
+        \\e\]8;; # Start of sequence
+        (?<url>.+)  # URL
+        \\e\\    # Separator
+        (?<text>.+) # Hyperlink text
+        \\e\]8;;\\e\\ # End of sequence
+      }x
+
       class << self
         extend T::Sig
 
@@ -20,6 +30,10 @@ module CLI
         sig { params(str: String).returns(Integer) }
         def printing_width(str)
           zwj = T.let(false, T::Boolean)
+
+          # Consider only the text in pretty hyperlinks
+          str = HYPERLINK_REGEXP.match(str)&.[](:text) || str
+
           strip_codes(str).codepoints.reduce(0) do |acc, cp|
             if zwj
               zwj = false

@@ -15,6 +15,8 @@ module CLI
 
         assert_equal(3, ANSI.printing_width('>🔧<'))
         assert_equal(1, ANSI.printing_width('👩‍💻'))
+
+        assert_equal(7, ANSI.printing_width('\e]8;;https://test.example.com/something?q=1\e\\testing\e]8;;\e\\'))
       end
 
       def test_line_skip_with_shift
