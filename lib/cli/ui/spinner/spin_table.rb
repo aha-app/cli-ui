@@ -49,29 +49,38 @@ module CLI
         #
         # ==== Example Usage
         #
-        #  COLUMNS = [
-        #    { title: "Row Title", width: 10 },
-        #    { title: "Column 1", width: 12 },
-        #    { title: "Column 2", width: 12 },
-        #  ]
+        # # typed: true
         #
-        #  CLI::UI::SpinTable.new(columns: COLUMNS) do |spin_table|
-        #    5.times do |r|
-        #      spin_table.add("Row #{r+1}") do |row|
-        #        2.times do |c|
-        #          row.add("Cell #{r+1}/#{c+1}") { |spinner| sleep rand(5..10) }
-        #        end
-        #      end
-        #    end
+        # require 'cli/ui'
+        # require 'cli/ui/spinner/spin_table'
         #
-        #    row = spin_table.add("Last")
-        #    2.times do |c|
-        #      row.add("Final (#{c+1})") do |spinner|
-        #        sleep rand(5..10)
-        #        spinner.update_title("Part Two (#{c+1})"); sleep 3.0
-        #      end
-        #    end
-        #  end
+        # COLUMNS = [
+        #   { title: 'Row Title', width: 10 },
+        #   { title: 'Column 1', width: 14 },
+        #   { title: 'Column 2', width: 14 },
+        # ]
+        #
+        # CLI::UI::StdoutRouter.enable
+        #
+        # CLI::UI::Spinner::SpinTable.new(columns: COLUMNS) do |spin_table|
+        #   5.times do |r|
+        #     spin_table.add("Row #{r + 1}") do |row|
+        #       2.times do |c|
+        #         row.add("Cell #{r + 1}/#{c + 1}") { |_spinner| sleep rand(5..10) }
+        #       end
+        #     end
+        #   end
+        #
+        #   spin_table.add('Totals') do |row|
+        #     2.times do |c|
+        #       row.add("Total (#{c + 1})") do |spinner|
+        #         sleep rand(5..10)
+        #         spinner.update_title("End (#{c + 1})")
+        #         sleep 3.0
+        #       end
+        #     end
+        #   end
+        # end
         #
         # Output:
         # TODO: update this gif
@@ -236,7 +245,7 @@ module CLI
             truncation_width = width - CLI::UI::ANSI.printing_width(prefix)
 
             prefix +
-              CLI::UI.resolve_text(title, truncate_to: truncation_width) +
+              CLI::UI.resolve_text(title, truncate_to: truncation_width).ljust(width, ' ') +
               "\e[K"
           end
 
@@ -245,12 +254,10 @@ module CLI
             cell_start_column + glyph(index) + CLI::UI::Color::RESET.code
           end
 
-          GLYPH_WIDTH = 2 # Glyph plus space
-          INTRA_CELL_PADDING = 1
 
           sig { returns(String) }
           def cell_start_column
-            start_column = table.columns.slice(0, column).sum { |c| c[:width] + GLYPH_WIDTH + INTRA_CELL_PADDING } + 1
+            start_column = table.columns.slice(0, column).sum { |c| c[:width] + 1 } + 1
             CLI::UI::ANSI.cursor_horizontal_absolute(start_column)
           end
 
@@ -269,7 +276,7 @@ module CLI
           @m.synchronize { rows << Row.new(rows.size, title, self, &block) }
         end
 
-        # Tells the group you're done adding tasks and to wait for all of them to finish
+        # Tells the table you're done adding rows and cells, and to wait for everything to finish
         #
         # ==== Example Usage:
         #   spin_group = CLI::UI::SpinGroup.new
@@ -279,12 +286,10 @@ module CLI
         sig { returns(T::Boolean) }
         def wait
           draw_empty_table
-
           idx = 0
 
           loop do
-            done_count = 0
-
+            done = true
             self.class.pause_mutex.synchronize do
               next if self.class.paused?
 
@@ -294,34 +299,19 @@ module CLI
                   print(CLI::UI::ANSI.cursor_up(rows.size) + "\r")
 
                   rows.each do |row|
-                    row.cells.each { |cell| cell.render(idx) }
+                    row.cells.each do |cell|
+                      done = false unless cell.check
+                      print(cell.render(idx, idx.zero?))
+                    end
 
                     # Move to the next row of the table
                     print(CLI::UI::ANSI.next_line + "\r")
                   end
-                  return
-
-                  # @tasks.each.with_index do |task, int_index|
-                  #   nat_index = int_index + 1
-                  #   task_done = task.check
-                  #   done_count += 1 if task_done
-
-                  #   if nat_index > @consumed_lines
-                  #     print(task.render(idx, true, width: width) + "\n")
-                  #     @consumed_lines += 1
-                  #   else
-                  #     offset = @consumed_lines - int_index
-                  #     move_to = CLI::UI::ANSI.cursor_up(offset) + "\r"
-                  #     move_from = "\r" + CLI::UI::ANSI.cursor_down(offset)
-
-                  #     print(move_to + task.render(idx, idx.zero?, width: width) + move_from)
-                  #   end
-                  # end
                 end
               end
             end
 
-            break if done_count == @tasks.size
+            break if done
 
             idx = (idx + 1) % GLYPHS.size
             Spinner.index = idx
