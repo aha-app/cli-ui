@@ -10,6 +10,7 @@ module CLI
 
       autoload :Async,      'cli/ui/spinner/async'
       autoload :SpinGroup,  'cli/ui/spinner/spin_group'
+      autoload :SpinTable,  'cli/ui/spinner/spin_table'
 
       PERIOD = 0.1 # seconds
       TASK_FAILED = :task_failed
