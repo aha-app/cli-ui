@@ -1,9 +1,11 @@
 # typed: true
 
+require 'cli/ui/spinner/spin_group'
+
 module CLI
   module UI
     module Spinner
-      class SpinTable < SpinGroup
+      class SpinTable < CLI::UI::Spinner::SpinGroup
         # Initializes a new spin table
         # This lets you add +Task+ objects to the group to multi-thread work formatted as a table
         #
@@ -15,9 +17,9 @@ module CLI
         # ==== Example Usage
         #
         #  COLUMNS = [
-        #    { title: "Row Title", width: 10 }
-        #    { title: "Column 1", width: 12 }
-        #    { title: "Column 2", width: 12 }
+        #    { title: "Row Title", width: 10 },
+        #    { title: "Column 1", width: 12 },
+        #    { title: "Column 2", width: 12 },
         #  ]
         #
         #  CLI::UI::SpinTable.new(columns: COLUMNS) do |spin_table|
@@ -50,7 +52,7 @@ module CLI
         sig { returns(T::Array[Row]) }
         attr_accessor :rows
 
-        sig { params(columns: T::Array(T::Hash), auto_debrief: T::Boolean).void }
+        sig { params(columns: T::Array(Hash), auto_debrief: T::Boolean).void }
         def initialize(columns:, auto_debrief: true)
           @columns = columns
           @rows = []
@@ -59,7 +61,7 @@ module CLI
         end
 
         class Row
-          extent T::Sig
+          extend T::Sig
 
           sig { returns(Integer) }
           attr_accessor :index
@@ -78,7 +80,7 @@ module CLI
               index: Integer,
               title: String,
               table: T::SpinTable,
-              block: T.proc.params(row: Row).returns(T.untyped),
+              block: T.proc.params(row: Row).void,
             )
           end
           def initialize(index, title, table, &block)
@@ -87,7 +89,7 @@ module CLI
             @table = table
             @cells = []
             @m = Mutex.new
-            block.call(self)
+            block&.call(self)
           end
 
           # Add a cell/task to the row
@@ -102,7 +104,7 @@ module CLI
           end
           def add(
             title,
-            final_glyph: DEFAULT_FINAL_GLYPH,
+            final_glyph: CLI::UI::Spinner::SpinGroup::DEFAULT_FINAL_GLYPH,
             merged_output: false,
             duplicate_output_to: File.new(File::NULL, 'w'),
             &block
@@ -116,6 +118,7 @@ module CLI
                 index,
                 column_index,
                 table.columns[column_index][:width],
+                table,
                 final_glyph: final_glyph,
                 merged_output: merged_output,
                 duplicate_output_to: duplicate_output_to,
@@ -149,7 +152,13 @@ module CLI
             @column = column
             @width = width
             @table = table
-            super
+            super(
+              title,
+              final_glyph: final_glyph,
+              merged_output: merged_output,
+              duplicate_output_to: duplicate_output_to,
+              &block
+            )
           end
 
           # Re-renders the task if required:
@@ -218,7 +227,7 @@ module CLI
           cursor_horizontal_absolute(column)
         end
 
-        sig { params(title: String, block: T.proc.params(group: SpinGroup).void).void }
+        sig { params(title: String, block: T.proc.params(row: Row).void).void }
         def add(title, &block)
           @m.synchronize { rows << Row.new(rows.size, title, self, &block) }
         end
@@ -305,6 +314,7 @@ module CLI
               end.join(' '),
               "\n",
               columns.map { |c| '-' * c[:width] }.join(' '),
+              "\n",
             )
 
             # Print row titles
