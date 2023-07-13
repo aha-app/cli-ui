@@ -1,11 +1,44 @@
 # typed: true
 
-require 'cli/ui/spinner/spin_group'
-
 module CLI
   module UI
     module Spinner
       class SpinTable < CLI::UI::Spinner::SpinGroup
+        DEFAULT_FINAL_GLYPH = ->(success) { success ? CLI::UI::Glyph::CHECK.to_s : CLI::UI::Glyph::X.to_s }
+
+        class << self
+          extend T::Sig
+
+          sig { returns(Mutex) }
+          attr_reader :pause_mutex
+
+          sig { returns(T::Boolean) }
+          def paused?
+            @paused
+          end
+
+          sig do
+            type_parameters(:T)
+              .params(block: T.proc.returns(T.type_parameter(:T)))
+              .returns(T.type_parameter(:T))
+          end
+          def pause_spinners(&block)
+            previous_paused = T.let(nil, T.nilable(T::Boolean))
+            @pause_mutex.synchronize do
+              previous_paused = @paused
+              @paused = true
+            end
+            block.call
+          ensure
+            @pause_mutex.synchronize do
+              @paused = previous_paused
+            end
+          end
+        end
+
+        @pause_mutex = Mutex.new
+        @paused = false
+
         # Initializes a new spin table
         # This lets you add +Task+ objects to the group to multi-thread work formatted as a table
         #
@@ -104,7 +137,7 @@ module CLI
           end
           def add(
             title,
-            final_glyph: CLI::UI::Spinner::SpinGroup::DEFAULT_FINAL_GLYPH,
+            final_glyph: DEFAULT_FINAL_GLYPH,
             merged_output: false,
             duplicate_output_to: File.new(File::NULL, 'w'),
             &block
@@ -133,6 +166,9 @@ module CLI
 
           sig { returns(Integer) }
           attr_accessor :row, :column, :width
+
+          sig { returns(T::SpinTable) }
+          attr_accessor :table
 
           sig do
             params(
@@ -175,15 +211,16 @@ module CLI
           #
           # ==== Attributes
           #
+          # * +index+ - index of the glyph to render
           # * +force+ - force rerender of the task
           #
-          sig { params(force: Boolean).void }
-          def render(force = true)
+          sig { params(index: Integer, force: Boolean).void }
+          def render(index, force = true)
             @m.synchronize do
               if force || @always_full_render || @force_full_render
-                full_render
+                full_render(index)
               else
-                partial_render
+                partial_render(index)
               end
             ensure
               @force_full_render = false
@@ -192,8 +229,8 @@ module CLI
 
           private
 
-          sig { returns(String) }
-          def full_render
+          sig { params(index: Integer).returns(String) }
+          def full_render(index)
             prefix = cell_start_column + glyph(index) + CLI::UI::Color::RESET.code + ' '
 
             truncation_width = width - CLI::UI::ANSI.printing_width(prefix)
@@ -208,6 +245,15 @@ module CLI
             cell_start_column + glyph(index) + CLI::UI::Color::RESET.code
           end
 
+          GLYPH_WIDTH = 2 # Glyph plus space
+          INTRA_CELL_PADDING = 1
+
+          sig { returns(String) }
+          def cell_start_column
+            start_column = table.columns.slice(0, column).sum { |c| c[:width] + GLYPH_WIDTH + INTRA_CELL_PADDING } + 1
+            CLI::UI::ANSI.cursor_horizontal_absolute(start_column)
+          end
+
           sig { params(index: Integer).returns(String) }
           def glyph(index)
             if @done
@@ -216,15 +262,6 @@ module CLI
               GLYPHS[index]
             end
           end
-        end
-
-        GLYPH_WIDTH = 2 # Glyph plus space
-        INTRA_CELL_PADDING = 1
-
-        sig { returns(String) }
-        def cell_start_column
-          column = table.columns.slice(0, column).sum { |c| c[:width] + GLYPH_WIDTH + INTRA_CELL_PADDING } + 1
-          cursor_horizontal_absolute(column)
         end
 
         sig { params(title: String, block: T.proc.params(row: Row).void).void }
@@ -242,7 +279,6 @@ module CLI
         sig { returns(T::Boolean) }
         def wait
           draw_empty_table
-          return
 
           idx = 0
 
@@ -258,9 +294,7 @@ module CLI
                   print(CLI::UI::ANSI.cursor_up(rows.size) + "\r")
 
                   rows.each do |row|
-                    row.cells.each do |cell|
-                      cell.render(idx, idx.zero?)
-                    end
+                    row.cells.each { |cell| cell.render(idx) }
 
                     # Move to the next row of the table
                     print(CLI::UI::ANSI.next_line + "\r")
