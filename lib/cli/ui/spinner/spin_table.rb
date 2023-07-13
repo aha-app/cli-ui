@@ -9,7 +9,7 @@ module CLI
         #
         # ==== Options
         #
-        # * +:columns+ - Array of column titles and widths
+        # * +:columns+ - Array of column titles and widths. Widths exclude the glyph and padding. Required.
         # * +:auto_debrief+ - Automatically debrief exceptions or through success_debrief? Default to true
         #
         # ==== Example Usage
@@ -137,16 +137,18 @@ module CLI
               row: Integer,
               column: Integer,
               width: Integer,
+              table: T::SpinTable,
               final_glyph: T.proc.params(success: T::Boolean).returns(String),
               merged_output: T::Boolean,
               duplicate_output_to: IO,
               block: T.proc.params(task: Task).returns(T.untyped),
             ).void
           end
-          def initialize(title, row, column, width, final_glyph:, merged_output:, duplicate_output_to:, &block)
+          def initialize(title, row, column, width, table, final_glyph:, merged_output:, duplicate_output_to:, &block)
             @row = row
             @column = column
             @width = width
+            @table = table
             super
           end
 
@@ -183,10 +185,7 @@ module CLI
 
           sig { returns(String) }
           def full_render
-            prefix = inset +
-              glyph(index) +
-              CLI::UI::Color::RESET.code +
-              ' '
+            prefix = cell_start_column + glyph(index) + CLI::UI::Color::RESET.code + ' '
 
             truncation_width = width - CLI::UI::ANSI.printing_width(prefix)
 
@@ -197,7 +196,7 @@ module CLI
 
           sig { params(index: Integer).returns(String) }
           def partial_render(index)
-            CLI::UI::ANSI.cursor_forward(inset_width) + glyph(index) + CLI::UI::Color::RESET.code
+            cell_start_column + glyph(index) + CLI::UI::Color::RESET.code
           end
 
           sig { params(index: Integer).returns(String) }
@@ -208,6 +207,15 @@ module CLI
               GLYPHS[index]
             end
           end
+        end
+
+        GLYPH_WIDTH = 2 # Glyph plus space
+        INTRA_CELL_PADDING = 1
+
+        sig { returns(String) }
+        def cell_start_column
+          column = table.columns.slice(0, column).sum { |c| c[:width] + GLYPH_WIDTH + INTRA_CELL_PADDING } + 1
+          cursor_horizontal_absolute(column)
         end
 
         sig { params(title: String, block: T.proc.params(group: SpinGroup).void).void }
@@ -232,15 +240,21 @@ module CLI
           loop do
             done_count = 0
 
-            # width = CLI::UI::Terminal.width
-
             self.class.pause_mutex.synchronize do
               next if self.class.paused?
 
               @m.synchronize do
                 CLI::UI.raw do
-                  rows.each_with_index do |row, row_index|
+                  # Cursor up to first row of the table
+                  print(CLI::UI::ANSI.cursor_up(rows.size) + "\r")
 
+                  rows.each do |row|
+                    row.cells.each do |cell|
+                      cell.render(idx, idx.zero?)
+                    end
+
+                    # Move to the next row of the table
+                    print(CLI::UI::ANSI.next_line + "\r")
                   end
                   return
 
