@@ -9,16 +9,6 @@ module CLI
 
       ESC = "\x1b"
 
-      # This matches the OSC-8 sequence for hyperlinks
-      # See https://github.com/Alhadis/OSC8-Adoption/
-      HYPERLINK_REGEXP = %r{
-        \\e\]8;; # Start of sequence
-        (?<url>.+)  # URL
-        \\e\\    # Separator
-        (?<text>.+) # Hyperlink text
-        \\e\]8;;\\e\\ # End of sequence
-      }x
-
       class << self
         extend T::Sig
 
@@ -207,6 +197,21 @@ module CLI
         sig { returns(String) }
         def clear_to_end_of_line
           control('', 'K')
+        end
+
+        HYPERLINK_REGEXP = %r{
+          \e\]8;;     # Start of sequence
+          (?<url>.+)  # URL
+          \e\\        # Separator
+          (?<text>.+) # Hyperlink text
+          \e\]8;;\e\\ # End of sequence
+        }x
+
+        # Generates an OSC-8 sequence for hyperlinks
+        # See https://github.com/Alhadis/OSC8-Adoption/
+        sig { params(url: String, text: String).returns(String) }
+        def hyperlink(url, text)
+          "\e]8;;#{url}\e\\#{text}\e]8;;\e\\"
         end
       end
     end
