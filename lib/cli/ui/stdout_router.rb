@@ -117,19 +117,21 @@ module CLI
               previous_print_captured_output = current_capture&.print_captured_output
               current_capture&.print_captured_output = true
               Spinner::SpinGroup.pause_spinners do
-                if outermost_uncaptured?
-                  begin
-                    prev_hook = Thread.current[:cliui_output_hook]
-                    Thread.current[:cliui_output_hook] = nil
-                    replay = current_capture!.stdout.gsub(ANSI.match_alternate_screen, '')
-                    CLI::UI.raw do
-                      print("#{ANSI.enter_alternate_screen}#{replay}")
+                Spinner::SpinTable.pause_spinners do
+                  if outermost_uncaptured?
+                    begin
+                      prev_hook = Thread.current[:cliui_output_hook]
+                      Thread.current[:cliui_output_hook] = nil
+                      replay = current_capture!.stdout.gsub(ANSI.match_alternate_screen, '')
+                      CLI::UI.raw do
+                        print("#{ANSI.enter_alternate_screen}#{replay}")
+                      end
+                    ensure
+                      Thread.current[:cliui_output_hook] = prev_hook
                     end
-                  ensure
-                    Thread.current[:cliui_output_hook] = prev_hook
                   end
+                  block.call
                 end
-                block.call
               ensure
                 print(ANSI.exit_alternate_screen) if outermost_uncaptured?
               end

@@ -23,8 +23,9 @@ module CLI
     autoload :Widgets,   'cli/ui/widgets'
     autoload :Wrap,      'cli/ui/wrap'
 
-    # Convenience accessor to +CLI::UI::Spinner::SpinGroup+
+    # Convenience accessors to +CLI::UI::Spinner::SpinGroup+ and +CLI::UI::Spinner::SpinTable+
     SpinGroup = Spinner::SpinGroup
+    SpinTable = Spinner::SpinTable
 
     Colorable = T.type_alias { T.any(Symbol, String, CLI::UI::Color) }
     FrameStylable = T.type_alias { T.any(Symbol, String, CLI::UI::Frame::FrameStyle) }
