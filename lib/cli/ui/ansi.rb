@@ -21,8 +21,10 @@ module CLI
         def printing_width(str)
           zwj = T.let(false, T::Boolean)
 
-          # Consider only the text in pretty hyperlinks
-          str = HYPERLINK_REGEXP.match(str)&.[](:text) || str
+          # Consider only the text in pretty hyperlinks by stripping out the URLs
+          find_hyperlinks(str).each do |hyperlink|
+            str.sub!(hyperlink[:url], '')
+          end
 
           strip_codes(str).codepoints.reduce(0) do |acc, cp|
             if zwj
@@ -200,18 +202,37 @@ module CLI
         end
 
         HYPERLINK_REGEXP = %r{
-          \e\]8;;     # Start of sequence
-          (?<url>.+)  # URL
-          \e\\        # Separator
-          (?<text>.+) # Hyperlink text
-          \e\]8;;\e\\ # End of sequence
-        }x
+          \e\]8;;      # Start of sequence
+          (?<url>.+?)  # URL
+          \e\\         # Separator
+          (?<text>.+?) # Hyperlink text
+          \e\]8;;\e\\  # End of sequence
+          }x
 
         # Generates an OSC-8 sequence for hyperlinks
         # See https://github.com/Alhadis/OSC8-Adoption/
+        #
         sig { params(url: String, text: String).returns(String) }
         def hyperlink(url, text)
           "\e]8;;#{url}\e\\#{text}\e]8;;\e\\"
+        end
+
+        # Return a list of OSC-8 hyperlinks that occur in a string
+        # Result will be an array of matches, each of which is a hash with the following keys:
+        # - :url - the hyperlink's url
+        # - :text - the typerlink's text
+        #
+        sig { params(text: String).returns(T::Array[T::Hash[Symbol, String]]) }
+        def find_hyperlinks(text)
+          text
+            .scan(HYPERLINK_REGEXP)
+            .map do |match|
+              HYPERLINK_REGEXP
+                .names
+                .map(&:to_sym)
+                .zip(match)
+                .to_h
+            end
         end
       end
     end

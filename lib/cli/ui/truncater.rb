@@ -32,6 +32,7 @@ module CLI
 
         sig { params(text: String, printing_width: Integer).returns(String) }
         def call(text, printing_width)
+          printing_width = account_for_hyperlinks(text, printing_width)
           return text if text.size <= printing_width
 
           width            = 0
@@ -91,6 +92,15 @@ module CLI
         end
 
         private
+
+        # This "adds" the length of hyperlinks to the printing width in order to
+        # prevent truncation due to the hyperlinks' URLs (since we only display the
+        # "pretty" link text)
+        sig { params(text: String, printing_width: Integer).returns(Integer) }
+        def account_for_hyperlinks(text, printing_width)
+          links_size = CLI::UI::ANSI.find_hyperlinks(text).sum { |l| l[:url].size }
+          printing_width + links_size
+        end
 
         sig { params(printable_codepoint: Integer).returns(Integer) }
         def width(printable_codepoint)
