@@ -244,9 +244,7 @@ module CLI
 
             truncation_width = width - CLI::UI::ANSI.printing_width(prefix)
 
-            prefix +
-              CLI::UI.resolve_text(title, truncate_to: truncation_width).ljust(width, ' ') +
-              "\e[K"
+            prefix + CLI::UI.resolve_text(title, truncate_to: truncation_width).ljust(width, ' ')
           end
 
           sig { params(index: Integer).returns(String) }
@@ -295,7 +293,7 @@ module CLI
               @m.synchronize do
                 CLI::UI.raw do
                   # Cursor up to first row of the table
-                  print(CLI::UI::ANSI.cursor_up(rows.size) + "\r")
+                  print(CLI::UI::ANSI.cursor_up(rows.size))
 
                   rows.each do |row|
                     row.cells.each do |cell|
@@ -304,7 +302,7 @@ module CLI
                     end
 
                     # Move to the next row of the table
-                    print(CLI::UI::ANSI.next_line + "\r")
+                    print(CLI::UI::ANSI.next_line)
                   end
                 end
               end
