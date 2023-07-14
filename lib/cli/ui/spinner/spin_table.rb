@@ -254,7 +254,6 @@ module CLI
             cell_start_column + glyph(index) + CLI::UI::Color::RESET.code
           end
 
-
           sig { returns(String) }
           def cell_start_column
             start_column = table.columns.slice(0, column).sum { |c| c[:width] + 1 } + 1
