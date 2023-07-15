@@ -21,10 +21,8 @@ module CLI
         def printing_width(str)
           zwj = T.let(false, T::Boolean)
 
-          # Consider only the text in pretty hyperlinks by stripping out the URLs
-          find_hyperlinks(str).each do |hyperlink|
-            str.sub!(hyperlink[:url], '')
-          end
+          # Consider only the text in pretty hyperlinks by stripping out the URLs and codes
+          str = strip_hyperlinks(str)
 
           strip_codes(str).codepoints.reduce(0) do |acc, cp|
             if zwj
@@ -201,21 +199,20 @@ module CLI
           control('', 'K')
         end
 
-        HYPERLINK_REGEXP = %r{
-          \e\]8;;      # Start of sequence
-          (?<url>.+?)  # URL
-          \e\\         # Separator
-          (?<text>.+?) # Hyperlink text
-          \e\]8;;\e\\  # End of sequence
-          }x
-
-        # Generates an OSC-8 sequence for hyperlinks
         # See https://github.com/Alhadis/OSC8-Adoption/
         #
         sig { params(url: String, text: String).returns(String) }
         def hyperlink(url, text)
           "\e]8;;#{url}\e\\#{text}\e]8;;\e\\"
         end
+
+        FIND_HYPERLINK_REGEXP = %r{
+          \e\]8;;      # Start of sequence
+          (?<url>.+?)  # URL
+          \e\\         # Separator
+          (?<text>.+?) # Hyperlink text
+          \e\]8;;\e\\  # End of sequence
+        }x
 
         # Return a list of OSC-8 hyperlinks that occur in a string
         # Result will be an array of matches, each of which is a hash with the following keys:
@@ -225,14 +222,26 @@ module CLI
         sig { params(text: String).returns(T::Array[T::Hash[Symbol, String]]) }
         def find_hyperlinks(text)
           text
-            .scan(HYPERLINK_REGEXP)
+            .scan(FIND_HYPERLINK_REGEXP)
             .map do |match|
-              HYPERLINK_REGEXP
+              FIND_HYPERLINK_REGEXP
                 .names
                 .map(&:to_sym)
                 .zip(match)
                 .to_h
             end
+        end
+
+        STRIP_HYPERLINK_REGEXP = %r{
+          \e\]8;;      # Start of sequence
+          .*?          # URL portion
+          \e\\         # End of sequence
+        }x
+
+        # Generates an OSC-8 sequence for hyperlinks
+        sig { params(text: String).returns(String) }
+        def strip_hyperlinks(text)
+          text.gsub(STRIP_HYPERLINK_REGEXP, '')
         end
       end
     end
