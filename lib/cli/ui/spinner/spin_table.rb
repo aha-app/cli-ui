@@ -244,7 +244,11 @@ module CLI
 
             truncation_width = width - CLI::UI::ANSI.printing_width(prefix)
 
-            prefix + CLI::UI.resolve_text(title, truncate_to: truncation_width).ljust(width, ' ')
+            render = prefix + CLI::UI.resolve_text(title, truncate_to: truncation_width)
+
+            # Pad the string to the full width of the cell in case the new text is shorter than the old
+            padding = width - CLI::UI::ANSI.printing_width(render)
+            render.ljust(render.size + padding, ' ')
           end
 
           sig { params(index: Integer).returns(String) }
