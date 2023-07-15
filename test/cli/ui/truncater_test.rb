@@ -9,6 +9,8 @@ module CLI
 
       MAN_COOKING = MAN + ZWJ + COOKING # width=2
 
+      HYPERLINK = ANSI.hyperlink('https://example.com', 'link')
+
       def test_truncate
         assert_example(3, 'foobar', "fo\x1b[0m…")
         assert_example(5, 'foobar', "foob\x1b[0m…")
@@ -18,6 +20,19 @@ module CLI
         assert_example(3, MAN_COOKING * 2, MAN_COOKING + Truncater::TRUNCATED)
         assert_example(3, 'A' + MAN_COOKING, 'A' + MAN_COOKING)
         assert_example(3, 'AB' + MAN_COOKING, 'AB' + Truncater::TRUNCATED)
+        assert_example(14, "#{HYPERLINK} is a link", "#{HYPERLINK} is a link")
+        assert_example(13, "#{HYPERLINK} is a link", "#{HYPERLINK} is a li#{Truncater::TRUNCATED}")
+      end
+
+      def test_hyperlinks_length
+        [
+          ['foo', 0],
+          [HYPERLINK, 19],
+          ["My #{HYPERLINK} is here", 19],
+          ["My #{HYPERLINK} #{HYPERLINK} #{HYPERLINK} are here", 3 * 19],
+        ].each do |text, expected|
+          assert_equal(Truncater.send(:hyperlinks_length, text), expected)
+        end
       end
 
       private

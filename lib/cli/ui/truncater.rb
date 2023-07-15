@@ -10,12 +10,16 @@ module CLI
       PARSE_ROOT = :root
       PARSE_ANSI = :ansi
       PARSE_ESC  = :esc
+      PARSE_OSC  = :osc
+      PARSE_OSC8 = :osc8
       PARSE_ZWJ  = :zwj
 
-      ESC                 = 0x1b
-      LEFT_SQUARE_BRACKET = 0x5b
-      ZWJ                 = 0x200d # emojipedia.org/emoji-zwj-sequences
-      SEMICOLON           = 0x3b
+      ESC                  = 0x1b
+      EIGHT                = 0x38
+      LEFT_SQUARE_BRACKET  = 0x5b
+      RIGHT_SQUARE_BRACKET = 0x5d
+      ZWJ                  = 0x200d # emojipedia.org/emoji-zwj-sequences
+      SEMICOLON            = 0x3b
 
       # EMOJI_RANGE in particular is super inaccurate. This is best-effort.
       # If you need this to be more accurate, we'll almost certainly accept a
@@ -32,12 +36,15 @@ module CLI
 
         sig { params(text: String, printing_width: Integer).returns(String) }
         def call(text, printing_width)
-          printing_width = account_for_hyperlinks(text, printing_width)
+          printing_width += hyperlinks_length(text)
           return text if text.size <= printing_width
 
           width            = 0
           mode             = PARSE_ROOT
           truncation_index = T.let(nil, T.nilable(Integer))
+
+          # Track OSC-8's multiple semicolons
+          saw_first_osc8_semicolon = false
 
           codepoints = text.codepoints
           codepoints.each.with_index do |cp, index|
@@ -60,6 +67,8 @@ module CLI
               mode = case cp
               when LEFT_SQUARE_BRACKET
                 PARSE_ANSI
+              when RIGHT_SQUARE_BRACKET
+                PARSE_OSC
               else
                 PARSE_ROOT
               end
@@ -72,6 +81,28 @@ module CLI
                 mode = PARSE_ROOT
               else
                 # unexpected. let's just go back to the root state I guess?
+                mode = PARSE_ROOT
+              end
+            when PARSE_OSC
+              mode = case cp
+              when EIGHT
+                PARSE_OSC8
+              else
+                # Unexpected OSC code. Back to the root state.
+                PARSE_ROOT
+              end
+            when PARSE_OSC8
+              case cp
+              when SEMICOLON
+                if saw_first_osc8_semicolon
+                  saw_first_osc8_semicolon = false
+                  mode = PARSE_ROOT
+                else
+                  saw_first_osc8_semicolon = true
+                end
+              else
+                # Unexpected OSC-8 code. Reset and back to the root state.
+                saw_first_osc8_semicolon = false
                 mode = PARSE_ROOT
               end
             when PARSE_ZWJ
@@ -93,13 +124,12 @@ module CLI
 
         private
 
-        # This "adds" the length of hyperlinks to the printing width in order to
-        # prevent truncation due to the hyperlinks' URLs (since we only display the
-        # "pretty" link text)
-        sig { params(text: String, printing_width: Integer).returns(Integer) }
-        def account_for_hyperlinks(text, printing_width)
-          links_size = CLI::UI::ANSI.find_hyperlinks(text).sum { |l| l[:url].size }
-          printing_width + links_size
+        # This calculates the length of hyperlinks to the printing width in order to
+        # prevent truncation due to the hyperlinks' invisible URLs (we only display
+        # the link text)
+        sig { params(text: String).returns(Integer) }
+        def hyperlinks_length(text)
+          CLI::UI::ANSI.find_hyperlinks(text).sum { |l| l[:url].size }
         end
 
         sig { params(printable_codepoint: Integer).returns(Integer) }
