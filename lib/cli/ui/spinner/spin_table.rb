@@ -289,6 +289,7 @@ module CLI
           draw_empty_table
           idx = 0
 
+          force_full_render = true
           loop do
             done = true
             self.class.pause_mutex.synchronize do
@@ -302,7 +303,7 @@ module CLI
                   rows.each do |row|
                     row.cells.each do |cell|
                       done = false unless cell.check
-                      print(cell.render(idx, idx.zero?))
+                      print(cell.render(idx, force_full_render))
                     end
 
                     # Move to the next row of the table
@@ -310,6 +311,8 @@ module CLI
                   end
                 end
               end
+
+              force_full_render = false
             end
 
             break if done
