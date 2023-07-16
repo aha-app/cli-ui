@@ -299,6 +299,7 @@ module CLI
                 CLI::UI.raw do
                   # Cursor up to first row of the table
                   print(CLI::UI::ANSI.cursor_up(rows.size))
+                  rows_up = rows.size
 
                   rows.each do |row|
                     row.cells.each do |cell|
@@ -308,7 +309,12 @@ module CLI
 
                     # Move to the next row of the table
                     print(CLI::UI::ANSI.next_line)
+                    rows_up -= 1
                   end
+                ensure
+                  # Cursor back to the bottom left. Useful to ensure clean error output.
+                  print(CLI::UI::ANSI.cursor_down(rows_up)) if rows_up.positive?
+                  print(CLI::UI::ANSI.cursor_horizontal_absolute)
                 end
               end
 
