@@ -226,11 +226,16 @@ module CLI
           sig { params(index: Integer, force: Boolean).void }
           def render(index, force = true)
             @m.synchronize do
-              if force || @always_full_render || @force_full_render
+              text = if force || @always_full_render || @force_full_render
                 full_render(index)
               else
                 partial_render(index)
               end
+
+              offset = table.rows.size - row
+              move_to = CLI::UI::ANSI.cursor_up(offset) + "\r"
+              move_from = "\r" + CLI::UI::ANSI.cursor_down(offset)
+              move_to + text + move_from
             ensure
               @force_full_render = false
             end
@@ -297,24 +302,12 @@ module CLI
 
               @m.synchronize do
                 CLI::UI.raw do
-                  # Cursor up to first row of the table
-                  print(CLI::UI::ANSI.cursor_up(rows.size))
-                  rows_up = rows.size
-
                   rows.each do |row|
                     row.cells.each do |cell|
                       done = false unless cell.check
                       print(cell.render(idx, force_full_render))
                     end
-
-                    # Move to the next row of the table
-                    print(CLI::UI::ANSI.next_line)
-                    rows_up -= 1
                   end
-                ensure
-                  # Cursor back to the bottom left. Useful to ensure clean error output.
-                  print(CLI::UI::ANSI.cursor_down(rows_up)) if rows_up.positive?
-                  print(CLI::UI::ANSI.cursor_horizontal_absolute)
                 end
               end
 
