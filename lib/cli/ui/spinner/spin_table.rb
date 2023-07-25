@@ -6,6 +6,15 @@ module CLI
       class SpinTable < CLI::UI::Spinner::SpinGroup
         DEFAULT_FINAL_GLYPH = ->(success) { success ? CLI::UI::Glyph::CHECK.to_s : CLI::UI::Glyph::X.to_s }
 
+        # Sample types of underline characters to be used for the table header, plus a default
+        UNDERLINE_DASHED = '╌'
+        UNDERLINE_DOTS = '⋯'
+        UNDERLINE_DOUBLE = '═'
+        UNDERLINE_HYPHEN = '-'
+        UNDERLINE_THICK = '━'
+        UNDERLINE_THIN = '─'
+        UNDERLINE_DEFAULT = UNDERLINE_THIN
+
         class << self
           extend T::Sig
 
@@ -94,9 +103,19 @@ module CLI
         sig { returns(T::Array[Row]) }
         attr_accessor :rows
 
-        sig { params(columns: T::Array(Hash), auto_debrief: T::Boolean).void }
-        def initialize(columns:, auto_debrief: true)
+        sig { returns(String) }
+        attr_accessor :heading_underline
+
+        sig do
+          params(
+            columns: T::Array(Hash),
+            heading_underline: String,
+            auto_debrief: T::Boolean,
+          ).void
+        end
+        def initialize(columns:, heading_underline: UNDERLINE_DEFAULT, auto_debrief: true)
           @columns = columns
+          @heading_underline = heading_underline
           @rows = []
           @m = Mutex.new
           super(auto_debrief: auto_debrief)
@@ -340,7 +359,7 @@ module CLI
                 c[:title].ljust(c[:width])
               end.join(' '),
               "\n",
-              inset + columns.map { |c| '-' * c[:width] }.join(' '),
+              inset + columns.map { |c| heading_underline * c[:width] }.join(' '),
               "\n",
             )
 
