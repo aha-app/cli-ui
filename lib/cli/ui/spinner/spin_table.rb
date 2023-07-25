@@ -263,7 +263,7 @@ module CLI
 
           sig { returns(String) }
           def cell_start_column
-            start_column = table.columns.slice(0, column).sum { |c| c[:width] + 1 } + 1
+            start_column = inset_width + table.columns.slice(0, column).sum { |c| c[:width] + 1 } + 1
             CLI::UI::ANSI.cursor_horizontal_absolute(start_column)
           end
 
@@ -336,17 +336,17 @@ module CLI
           CLI::UI.raw do
             # Print column titles with underlines
             print(
-              columns.map do |c|
+              inset + columns.map do |c|
                 c[:title].ljust(c[:width])
               end.join(' '),
               "\n",
-              columns.map { |c| '-' * c[:width] }.join(' '),
+              inset + columns.map { |c| '-' * c[:width] }.join(' '),
               "\n",
             )
 
             # Print row titles
             rows.each do |r|
-              print("#{r.title}\n")
+              print(inset + r.title + "\n")
             end
           end
         end
@@ -376,6 +376,16 @@ module CLI
           @m.synchronize do
             @tasks.all?(&:success)
           end
+        end
+
+        sig { returns(String) }
+        def inset
+          @inset ||= CLI::UI::Frame.prefix
+        end
+
+        sig { returns(Integer) }
+        def inset_width
+          @inset_width ||= CLI::UI::ANSI.printing_width(inset)
         end
 
         # Debriefs failed tasks if +auto_debrief+ is true
