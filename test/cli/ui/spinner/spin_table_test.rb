@@ -10,7 +10,7 @@ module CLI
         ]
 
         def test_spin_table
-          _out, err = capture_io do
+          out, err = capture_io do
             CLI::UI::StdoutRouter.ensure_activated
 
             st = create_spin_table do
@@ -18,6 +18,15 @@ module CLI
             end
 
             assert(st.wait)
+          end
+
+          [
+            'Service         Progress            ',
+            '─────────────── ────────────────────',
+            'Service A',
+            'Starting...    ',
+          ].each do |line|
+            assert(out.include?(line), "Unable to find '#{line}' in output")
           end
 
           assert_equal('', err)
