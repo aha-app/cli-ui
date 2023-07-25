@@ -108,7 +108,7 @@ module CLI
 
         sig do
           params(
-            columns: T::Array(Hash),
+            columns: T::Array[Hash],
             heading_underline: String,
             auto_debrief: T::Boolean,
           ).void
