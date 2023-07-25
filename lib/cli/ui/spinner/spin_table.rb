@@ -410,7 +410,7 @@ module CLI
         sig { returns(T::Boolean) }
         def all_succeeded?
           @m.synchronize do
-            @tasks.all?(&:success)
+            tasks.all?(&:success)
           end
         end
 
@@ -424,13 +424,18 @@ module CLI
           @inset_width ||= CLI::UI::ANSI.printing_width(inset)
         end
 
+        sig { returns(Array[Task]) }
+        def tasks
+          rows.flat_map(&:cells)
+        end
+
         # Debriefs failed tasks if +auto_debrief+ is true
         #
         sig { returns(T::Boolean) }
         def debrief
           @m.synchronize do
-            @tasks.each do |task|
-              title = task.title
+            tasks.each do |task|
+              title = "#{rows[task.row].title} - #{columns[task.column][:title]}"
               out = task.stdout
               err = task.stderr
 
@@ -456,7 +461,7 @@ module CLI
                 puts err
               end
             end
-            @tasks.all?(&:success)
+            tasks.all?(&:success)
           end
         end
       end
