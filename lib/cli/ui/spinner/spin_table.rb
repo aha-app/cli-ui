@@ -370,25 +370,25 @@ module CLI
           end
         end
 
-        # Provide an alternative debriefing for failed tasks
-        sig do
-          params(
-            block: T.proc.params(title: String, exception: T.nilable(Exception), out: String, err: String).void,
-          ).void
-        end
-        def failure_debrief(&block)
-          @failure_debrief = block
-        end
+        # # Provide an alternative debriefing for failed tasks
+        # sig do
+        #   params(
+        #     block: T.proc.params(title: String, exception: T.nilable(Exception), out: String, err: String).void,
+        #   ).void
+        # end
+        # def failure_debrief(&block)
+        #   @failure_debrief = block
+        # end
 
-        # Provide a debriefing for successful tasks
-        sig do
-          params(
-            block: T.proc.params(title: String, out: String, err: String).void,
-          ).void
-        end
-        def success_debrief(&block)
-          @success_debrief = block
-        end
+        # # Provide a debriefing for successful tasks
+        # sig do
+        #   params(
+        #     block: T.proc.params(title: String, out: String, err: String).void,
+        #   ).void
+        # end
+        # def success_debrief(&block)
+        #   @success_debrief = block
+        # end
 
         sig { returns(T::Boolean) }
         def all_succeeded?
