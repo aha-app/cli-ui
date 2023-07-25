@@ -97,7 +97,7 @@ module CLI
 
         extend T::Sig
 
-        sig { returns(T::Hash) }
+        sig { returns(T::Array[T::Hash]) }
         attr_accessor :columns
 
         sig { returns(T::Array[Row]) }
@@ -130,7 +130,7 @@ module CLI
           sig { returns(String) }
           attr_accessor :title
 
-          sig { returns(T::SpinTable) }
+          sig { returns(SpinTable) }
           attr_accessor :table
 
           sig { returns(T::Array[Task]) }
@@ -140,9 +140,9 @@ module CLI
             params(
               index: Integer,
               title: String,
-              table: T::SpinTable,
-              block: T.proc.params(row: Row).void,
-            )
+              table: SpinTable,
+              block: T.nilable(T.proc.params(row: Row).void),
+            ).void
           end
           def initialize(index, title, table, &block)
             @index = index
@@ -195,7 +195,7 @@ module CLI
           sig { returns(Integer) }
           attr_accessor :row, :column, :width
 
-          sig { returns(T::SpinTable) }
+          sig { returns(SpinTable) }
           attr_accessor :table
 
           sig do
@@ -204,7 +204,7 @@ module CLI
               row: Integer,
               column: Integer,
               width: Integer,
-              table: T::SpinTable,
+              table: SpinTable,
               final_glyph: T.proc.params(success: T::Boolean).returns(String),
               merged_output: T::Boolean,
               duplicate_output_to: IO,
@@ -242,7 +242,11 @@ module CLI
           # * +index+ - index of the glyph to render
           # * +force+ - force rerender of the task
           #
-          sig { params(index: Integer, force: Boolean).void }
+          sig do
+            override(allow_incompatible: true)
+              .params(index: Integer, force: T::Boolean)
+              .returns(String)
+          end
           def render(index, force = true)
             @m.synchronize do
               text = if force || @always_full_render || @force_full_render
@@ -262,7 +266,11 @@ module CLI
 
           private
 
-          sig { params(index: Integer).returns(String) }
+          sig do
+            override(allow_incompatible: true)
+              .params(index: Integer)
+              .returns(String)
+          end
           def full_render(index)
             prefix = cell_start_column + glyph(index) + CLI::UI::Color::RESET.code + ' '
 
@@ -296,9 +304,18 @@ module CLI
           end
         end
 
-        sig { params(title: String, block: T.proc.params(row: Row).void).void }
+        sig do
+          override(allow_incompatible: true)
+            .params(
+              title: String,
+              block: T.nilable(T.proc.params(row: Row).void),
+            )
+            .returns(Row)
+        end
         def add(title, &block)
-          @m.synchronize { rows << Row.new(rows.size, title, self, &block) }
+          Row.new(rows.size, title, self, &block).tap do |row|
+            @m.synchronize { rows << row }
+          end
         end
 
         # Tells the table you're done adding rows and cells, and to wait for everything to finish
