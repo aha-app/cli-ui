@@ -190,7 +190,7 @@ module CLI
           params(
             with_frame_inset: T::Boolean,
             merged_output: T::Boolean,
-            duplicate_output_to: IO,
+            duplicate_output_to: T.nilable(IO),
             block: T.proc.void,
           ).void
         end

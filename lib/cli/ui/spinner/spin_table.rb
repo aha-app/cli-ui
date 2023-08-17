@@ -159,7 +159,7 @@ module CLI
               title: String,
               final_glyph: T.proc.params(success: T::Boolean).returns(String),
               merged_output: T::Boolean,
-              duplicate_output_to: IO,
+              duplicate_output_to: T.nilable(IO),
               block: T.proc.params(task: Task).void,
             ).void
           end
@@ -207,7 +207,7 @@ module CLI
               table: SpinTable,
               final_glyph: T.proc.params(success: T::Boolean).returns(String),
               merged_output: T::Boolean,
-              duplicate_output_to: IO,
+              duplicate_output_to: T.nilable(IO),
               block: T.proc.params(task: Task).returns(T.untyped),
             ).void
           end
