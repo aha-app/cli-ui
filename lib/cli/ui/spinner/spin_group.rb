@@ -275,7 +275,7 @@ module CLI
           title,
           final_glyph: DEFAULT_FINAL_GLYPH,
           merged_output: false,
-          duplicate_output_to: File.new(File::NULL, 'w'),
+          duplicate_output_to: nil,
           &block
         )
           @m.synchronize do

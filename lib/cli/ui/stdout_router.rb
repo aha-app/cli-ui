@@ -197,7 +197,7 @@ module CLI
         def initialize(
           with_frame_inset: true,
           merged_output: false,
-          duplicate_output_to: File.open(File::NULL, 'w'),
+          duplicate_output_to: nil,
           &block
         )
           @with_frame_inset = with_frame_inset
@@ -234,7 +234,7 @@ module CLI
               case stream
               when :stdout
                 @out.write(data)
-                @duplicate_output_to.write(data)
+                @duplicate_output_to&.write(data)
               when :stderr
                 @err.write(data)
               else raise
