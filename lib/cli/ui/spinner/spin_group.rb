@@ -104,6 +104,13 @@ module CLI
             @title = title
             @final_glyph = final_glyph
             @always_full_render = title =~ Formatter::SCAN_WIDGET
+
+            @m = Mutex.new
+            @force_full_render = false
+            @done = false
+            @exception = nil
+            @success   = false
+
             @thread = Thread.new do
               cap = CLI::UI::StdoutRouter::Capture.new(
                 merged_output: merged_output, duplicate_output_to: duplicate_output_to,
@@ -115,12 +122,6 @@ module CLI
                 @stderr = cap.stderr
               end
             end
-
-            @m = Mutex.new
-            @force_full_render = false
-            @done = false
-            @exception = nil
-            @success   = false
           end
 
           # Checks if a task is finished
